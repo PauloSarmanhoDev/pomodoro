@@ -120,7 +120,7 @@ class NotificationService {
     try {
       new Notification(title, {
         body,
-        icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ad3426"><circle cx="12" cy="12" r="10"/></svg>'
+        icon: 'icons/icon-192.png'
       });
     } catch (e) {
       console.warn('Erro ao disparar notificação:', e);
@@ -370,7 +370,17 @@ class PomodoroApp {
       tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
-    // Atualiza label do status
+    // Atualiza label do status e meta theme-color para PWA
+    const themeColors = {
+      pomodoro: '#ba4949',
+      shortBreak: '#328287',
+      longBreak: '#3d6f9a'
+    };
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme && themeColors[newMode]) {
+      metaTheme.setAttribute('content', themeColors[newMode]);
+    }
+
     if (newMode === 'pomodoro') {
       this.statusLabel.textContent = 'Hora de Focar';
     } else if (newMode === 'shortBreak') {
@@ -755,8 +765,45 @@ class PomodoroApp {
 }
 
 // ----------------------------------------------------------------------------
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO & REGISTRO PWA
 // ----------------------------------------------------------------------------
+let deferredInstallPrompt = null;
+
+// Captura o evento nativo para permitir instalação via botão do app
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const pwaBtn = document.getElementById('pwaInstallBtn');
+  if (pwaBtn) {
+    pwaBtn.classList.remove('hidden');
+    pwaBtn.onclick = async () => {
+      pwaBtn.classList.add('hidden');
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        console.log('Instalação PWA:', choice.outcome);
+        deferredInstallPrompt = null;
+      }
+    };
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  const pwaBtn = document.getElementById('pwaInstallBtn');
+  if (pwaBtn) pwaBtn.classList.add('hidden');
+  console.log('Pomodoro Focus instalado com sucesso!');
+});
+
+// Registra o Service Worker para cache e uso offline
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then((reg) => console.log('Service Worker ativo:', reg.scope))
+      .catch((err) => console.log('Service Worker não registrado:', err));
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new PomodoroApp();
 });
+
